@@ -138,10 +138,10 @@ Rscript ../code/estimate_lambda.R -v -o sparsepaint/lambda.txt sparsepaint/test{
 The output per chromosome is `test{$chr}.sp.estlambda_fixedlambda.txt` which contains information like:
 ```{sh}
 $ cat sparsepaint/test22.sp.estlambda_fixedlambda.txt
-The fixed lambda used for SparsePainter is: 95859.3
+The fixed lambda used for SparsePainter is: 122274
 ```
 
-We then average these with `estimate_lambda.R` into the file `sparsepaint/lambda.txt`.
+Note that this this is a stochastic algorithm so your number will vary from the above. We then average these with `estimate_lambda.R` into the file `sparsepaint/lambda.txt`.
 
 ## Perform ref-vs-ref painting
 
