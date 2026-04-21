@@ -1,6 +1,14 @@
-# SparsePainter pipeline for the European reference panel
+# SparsePainter pipeline for a simple European reference panel
+
+Goal: To understand how to work with the fast painting tools [SparsePainter and PBWTpaint](https://sparsepainter.github.io/) with a full working example, for the purpose of describing some **target individuals** with ancestry from a **reference panel**.
+
+Prerequisites: install [SparsePainter](https://github.com/yaolingYang/sparsePainter), [Finestructure v4](https://github.com/danjlawson/finestructure4), and [pbwt](https://github.com/richarddurbin/pbwt).
 
 # Stage 0: create a reference panel id list
+
+Genetic data are determined from a variety of possible sources and contain a variety of different issues. It is very important to perform careful quality control and data standardization before you start. To learn local ancestry, you will need "dense SNP data" as obtained by e.g. a SNP genotyping array or sequencing. Expect to work with hundreds of thousands of SNPs.
+
+Proper choice of reference panel is also critical - if you try to describe ancestry patterns without a good proxy for the ancestry you are interested in, the results will be hard to interpret.
 
 ## Phasing and imputation
 
