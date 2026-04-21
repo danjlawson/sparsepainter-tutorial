@@ -259,17 +259,15 @@ Note: We will here **add the `-prob` parameter** to generate local paintings. Fo
 
 ```{sh}
 for chr in $chrlist; do
-    SparsePainter -reffile processeddata/panel.small.chrom${chr}.vcf -targetfile processeddata/target.small.chrom${chr}.vcf -popfile testcombined.pop.ids -mapfile rawdata/EuropeSample.small.chrom${chr}.sp.map -namefile rawdata/targets.ids -indfrac 1 -fixlambda $lambda -out targetpaint/test${chr}.sp.loo -chunklength -nsample 0 -L0 $L0 -Lmin $Lmin -relafrac $relafrac &> targetpaint/sp.loo.chr${chr}.log
+    SparsePainter -reffile processeddata/panel.small.chrom${chr}.vcf -targetfile processeddata/target.small.chrom${chr}.vcf -popfile testcombined.pop.ids -mapfile rawdata/EuropeSample.small.chrom${chr}.sp.map -namefile rawdata/targets.ids -indfrac 1 -fixlambda $lambda -out targetpaint/test${chr}.sp.local -prob -nsample 0 -L0 $L0 -Lmin $Lmin -relafrac $relafrac &> targetpaint/sp.local.chr${chr}.log
 done
-### Combine across chromosomes
-Rscript ../code/combine_sparsepainter.R -v -o targetpaint/test.combined.chunklength.txt targetpaint/test{1..22}.sp.loo_chunklength.txt.gz
 ```
 
 
 The `-prob` parameter outputs painting probabilities per-snp. For some uses (such as [(fast) GlobeTrotter](github.com/hellenthal-group-UCL/fastGLOBETROTTER)), the `-nsample 10` option (which draws haplotypes from the sampling distribution) would be a better choice. The output of `prob` looks like this:
 
 ```{sh}
-$ zless targetpaint/test22.sp.loo_prob.txt.gz | head -n 10
+$ zless targetpaint/test22.sp.local_prob.txt.gz | head -n 10
 #Storage Mode: Constant
 SNPidx_start SNPidx_end A_14Orcadian B_11Italian C_15Adygei
 Orcadian15_0
@@ -284,7 +282,13 @@ Orcadian15_0
 
 where we get (for each of the 2n haplotypes in the target file, separated by their haplotype name - here `Orcadian15_0`) a data matrix of the form `<start SNP> <end SNP> <prob_1> ... <prob_K>` for the $K$ populations.
 
-The [plot_local_ancestry.R](plot_local_ancestry.R) script gives an example of plotting this. More generally you will be interested in the statistical distribution of local ancestry, which is described on the [SparsePainter readme](https://github.com/YaolingYang/SparsePainter). potentially the [Ancestry Anomaly Score](https://github.com/danjlawson/ms_paper), Linkage Disequilibrium of Ancestry (LDA) score, and other uses.
+The [plot_local_ancestry.R](plot_local_ancestry.R) script gives an example of plotting this:
+
+```{r}
+Rscript plot_local_ancestry.R # makes the plots in results/localAncestry_chr{1..22}.png
+```
+
+More generally you will be interested in the statistical distribution of local ancestry, which is described on the [SparsePainter readme](https://github.com/YaolingYang/SparsePainter). potentially the [Ancestry Anomaly Score](https://github.com/danjlawson/ms_paper), Linkage Disequilibrium of Ancestry (LDA) score, and other uses.
 
 # Aside: Individual-level painting
 
@@ -297,6 +301,6 @@ awk '{printf("%s %s\n",$1,$1);}' testcombined.pop.ids > testcombined.indsaspops.
 ## Each individual is its own reference population here.
 
 for chr in $chrlist; do
-	SparsePainter -reffile rawdata/EuropeSample.small.chrom${chr}.phase -targetfile targetdata/targetEuropeSample.small.chrom${chr}.phase -popfile testcombined.indsaspops.ids -mapfile rawdata/EuropeSample.small.chrom${chr}.sp.map -namefile targetdata/target.ids -indfrac 1 -fixlambda $lambda -out targetpaint/test${chr}.sp.ind -chunklength -nsample 0 -L0 $L0 -rmrelative -loo -Lmin $Lmin -outmatch -prob &> tmp.log
+	SparsePainter -reffile processeddata/panel.small.chrom${chr}.vcf -targetfile processeddata/target.small.chrom${chr}.vcf -popfile testcombined.indsaspops.ids -mapfile rawdata/EuropeSample.small.chrom${chr}.sp.map -namefile rawdata/targets.ids -indfrac 1 -fixlambda $lambda -out targetpaint/test${chr}.sp.ind -chunklength -prob -nsample 0 -L0 $L0 -Lmin $Lmin &> tmp.log
 done
 ```
