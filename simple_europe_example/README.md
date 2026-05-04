@@ -2,13 +2,14 @@
 
 Goal: To understand how to work with the fast painting tools [SparsePainter and PBWTpaint](https://sparsepainter.github.io/) with a full working example, for the purpose of describing some **target individuals** with ancestry from a **reference panel**.
 
-Prerequisites: install [SparsePainter](https://github.com/yaolingYang/sparsePainter), [Finestructure v4](https://github.com/danjlawson/finestructure4), and [pbwt](https://github.com/richarddurbin/pbwt).
+Prerequisites: install [SparsePainter](https://github.com/yaolingYang/sparsePainter), [Finestructure v4](https://github.com/danjlawson/finestructure4), and [pbwt](https://github.com/richarddurbin/pbwt), [R]() as well as R packages 'ape', 'XML', and 'nnls' installed with `install.packages(c("XML","ape","nnls"))`.
+
 
 # Stage 0: create a reference panel id list
 
-Genetic data are determined from a variety of possible sources and contain a variety of different issues. It is very important to perform careful quality control and data standardization before you start. To learn local ancestry, you will need "dense SNP data" as obtained by e.g. a SNP genotyping array or sequencing. Expect to work with hundreds of thousands of SNPs.
+Genetic data are determined from a variety of possible sources and contain a variety of different issues. It is very important to perform careful **quality control** and **data harmonization** before you start. To learn local ancestry, you will need "dense SNP data" as obtained by e.g. a SNP genotyping array or sequencing. Expect to work with hundreds of thousands of SNPs.
 
-Proper choice of reference panel is also critical - if you try to describe ancestry patterns without a good proxy for the ancestry you are interested in, the results will be hard to interpret.
+Proper **choice of reference panel** is also critical - if you try to describe ancestry patterns without a good proxy for the ancestry you are interested in, the results will be hard to interpret.
 
 ## Phasing and imputation
 
@@ -35,7 +36,7 @@ chrlist=`seq 1 22`
 mkdir -p pbwtpaint
 mkdir -p processeddata
 ```
- 
+
 Extract the target and panel data into separate files:
 
 ```{sh}
@@ -55,13 +56,13 @@ for chr in $chrlist; do
 done
 ```
 
-The output goes in `pbwtpaint/test${chr}`. We've given two further parameters here: the number of SNPs in an "indepedent" region (10 here because our data are strongly thinned; use around 100 for SNP chips and more for sequence data), and the ploidy (which should stay as 2 because humans are diploid).
+The output goes in `pbwtpaint/test${chr}`. We've given two further parameters here: the number of SNPs in an "independent" region (10 here because our data are strongly thinned; use around 100 for SNP chips and more for sequence data), and the ploidy (which should stay as 2 because humans are diploid).
 
 For some tasks you will switch to `-paintSparse` which takes a third argument: a threshold (number of SNPs across the whole genome shared by two individuals) for inclusion in the output. The default 0 means no thresholding; file sizes are decreased by increasing it. Its SNP quality dependent so explore good parameters on a short chromosome.
 
-For **finestructure** use the main data are `chunkcounts.out` (number of recombination events shared by two individuals) and `regionchunkcounts.out` and `regionsquaredchunkcounts.out`, which are used to estimate the variance by the `fs combine` command below (ChromoCombine, which is part of Finestructure).
+For **finestructure** use the main data are `chunkcounts` (number of recombination events shared by two individuals) and `regionchunkcounts` and `regionsquaredchunkcounts`, which are used to estimate the variance by the `fs combine` command below (ChromoCombine, which is part of Finestructure).
 
-For computing Haplotype Components, the `chunklengths.out` files (total genome shared between individuals)  are used.
+For computing Haplotype Components, the (sparse) `chunklengths` files (total genome shared between individuals)  are used.
 
 ## Perform clustering
 
@@ -69,11 +70,13 @@ Finestructure can be run on `pbwtpaint` output directly. Note that it is possibl
 
 ```{sh}
 fs combine -m -o pbwtpaint/testcombined pbwtpaint/test{1..22}.chunklengths.out
-fs fs -x 10000 -y 10000 -z 100 pbwtpaint/testcombined.chunkcounts.out pbwtpaint/testcombined.mcmc.xml
-fs fs -m T -x 0 -y 10000 -z 100 pbwtpaint/testcombined.chunkcounts.out pbwtpaint/testcombined.mcmc.xml pbwtpaint/testcombined.tree.xml
+fs fs -x 10000 -y 10000 -z 100 -s 42 pbwtpaint/testcombined.chunkcounts.out pbwtpaint/testcombined.mcmc.xml
+fs fs -m T -x 0 -y 10000 -z 100 -s 42 pbwtpaint/testcombined.chunkcounts.out pbwtpaint/testcombined.mcmc.xml pbwtpaint/testcombined.tree.xml
 ```
 
-We've done two `fs fs` finestructure steps here. The first runs Markov-Chain Monte Carlo (MCMC) estimation of clusters that includes clustering uncertainty. The second finds the least-bad single clustering, and makes a tree describing similarities between the clusters.
+We've done two `fs fs` finestructure steps here (using a fixed random seed for replicability). The first runs Markov-Chain Monte Carlo (MCMC) estimation of clusters that includes clustering uncertainty. `pbwtpaint/testcombined.mcmc.xml` contains all of the uncertainty information about this analysis. R scripts to process this are included; [FinestructureLibrary.R](code/FinestructureLibrary.R) and others below. For manual processing, `grep "<F>" pbwtpaint/testcombined.mcmc.xml` will extract samples of the between-population variance parameter.
+
+The second finds the least-bad single clustering, and makes a tree describing similarities between the clusters. `grep "<K>" pbwtpaint/testcombined.tree.xml` will extract the number of populations in the results.
 
 ### Issues:
 
@@ -81,11 +84,11 @@ We've done two `fs fs` finestructure steps here. The first runs Markov-Chain Mon
 
 2. **I get too many clusters!** For complex cases, there may be fine-scale population structure in your data. The [FinestructureLibrary.R](https://github.com/danjlawson/finestructure4) file explores building a tree and cutting it to partially address this issue (see Example 4). This is used below in `clusters_from_fs_pbwtpaint.R`.
 
-3. **I get too few clusters?**: Either your data SNP density is too low, your samples are too similar, there are too few of them - or something technical has gone wrong. Phasing can go wrong, leading to practically unphased data; you might need to revisit the block size given to `pbwt` (check the first line of `pbwtpaint/testcombined.chunkcounts.out` - it reads `#Cfactor 0.758783222` here, and should be not toofar from 1 on most datasets). Try using ChromoPainter instead.
+3. **I get too few clusters?**: Either your data SNP density is too low, your samples are too similar, there are too few of them - or something technical has gone wrong. Phasing can go wrong, leading to practically unphased data; you might need to revisit the region size given to `pbwt` (check the first line of `pbwtpaint/testcombined.chunkcounts.out` - it reads `#Cfactor 0.758783222` here, and should be not too far from 1 on most datasets). Try using ChromoPainter instead. It is also possible you had bad luck and failed to find a good starting point for finestructure - try rerunning
 
 ## Remove/merge small clusters and any manual tweaks
 
-To proceed with reasonable defaults, try this. You should be able to change the `cutat` option to get more or less clusters. Because this is a very amanual process in general, its not fully scripted and you will have to edit it youself.
+To proceed with reasonable defaults, try this. You should be able to change the `cutat` variable to get more or less clusters. Because this is a very manual process in general, its not fully scripted and you will have to edit it yourself.
 
 ```{sh}
 Rscript clusters_from_fs_pbwtpaint.R # makes a lot of figures and "testcombined.pop.ids"
@@ -109,7 +112,7 @@ Edit the population file appropriately. Feel free to merge clusters, move indivi
 
 We will now learn about the properties of the reference panel we just created.
 
-We first define some important parameters. You need to change `L0` and `Lmin` to larger values (closer to the default) for SNP-chip density datasets (or better).
+We first define some important parameters. For your data you need to change the SNP matching parameters `L0` and `Lmin` to larger values (closer to the default) for SNP-chip density datasets (or better).
 
 Good practice would involve writing these to a file for confirmation and later use.
 
@@ -124,12 +127,13 @@ Lmin="8" # The minimal length of matches that SparsePainter searches for (defaul
 
 The `lambda` parameter is an effectively recombination rate used by SparsePainter (analogous to ChromoPainter's `Ne` parameter, which is a **scaled** version of an effective population size, and a terrible estimator for real population sizes!)
 
-Here we estimate lambda efficiently by only looking at a subset of individuals (20%) for each chromosome. The exact parameter value isn't important as long as its the right order of magnitude, so you can lower `indfrac` quite aggressibely for larger datasets.
+Here we estimate lambda efficiently by only looking at a subset of individuals (20%) for each chromosome. The exact parameter value isn't important as long as its the right order of magnitude, so you can lower `indfrac` quite aggressively for larger datasets.
 
 There is a lot to unpack here. We're telling `SparsePainter` to omit one individual per reference population (leave one out, `-loo`) - we're specifying the reference and target file (to be the same file) and we're telling it about the population and recombination data. We specify `-forlambda` to reduce output volume, and `-nsample 0` to not output any samples from the model. The other parameters are above.
 
 ```{sh}
 for chr in $chrlist; do
+    echo "Processing Chromosome $chr"
     SparsePainter -loo -reffile processeddata/panel.small.chrom${chr}.vcf -targetfile processeddata/panel.small.chrom${chr}.vcf -popfile testcombined.pop.ids -mapfile rawdata/EuropeSample.small.chrom${chr}.sp.map -namefile rawdata/panel.ids -indfrac 0.2 -out sparsepaint/test${chr}.sp.estlambda -forlambda -nsample 0 -L0 $L0 -Lmin $Lmin &> sparsepaint/sp.estlambda.chr${chr}.log
 done
 Rscript ../code/estimate_lambda.R -v -o sparsepaint/lambda.txt sparsepaint/test{1..22}.sp.estlambda_fixedlambda.txt
@@ -150,6 +154,7 @@ We can now paint the reference panel against the rest of the reference panel. Th
 ```{sh}
 lambda=`cat sparsepaint/lambda.txt`
 for chr in $chrlist; do
+    echo "Processing chromosome $chr"
     SparsePainter -loo -reffile processeddata/panel.small.chrom${chr}.vcf -targetfile processeddata/panel.small.chrom${chr}.vcf -popfile testcombined.pop.ids -mapfile rawdata/EuropeSample.small.chrom${chr}.sp.map -namefile rawdata/panel.ids -indfrac 1 -fixlambda $lambda -out sparsepaint/test${chr}.sp.loo -chunklength -nsample 0 -L0 $L0 -Lmin $Lmin &> sparsepaint/sp.loo.chr${chr}.log
 done
 ### Combine across chromosomes
@@ -193,7 +198,7 @@ note that in general we don't require that the **donor populations** (columns) a
 
 1) use all of the statistically distinguishable populations as donors, and
 2) merge these into interpretable populations as surrogates, and
-3) for some places like Native Americans, we deliberately choose distinct populations for each, so that the surrogate looks like the **common ancestor** between themselves and the **donor**.
+3) for some poorly represented ancestries like Native Americans, we deliberately choose distinct populations for each, so that the surrogate looks like the **common ancestor** between themselves and the **donor**.
 
 ## Sanity check: admixture estimation
 
@@ -205,7 +210,7 @@ First we infer the admixture of each individual compared to the panel:
 Rscript ../code/admixture_vs_panel.R -v test_admix_panel.txt sparsepaint/test.combined.chunklength.txt results/test_admix_vs_panel.txt
 ```
 
-The output `results/test_admix_vs_panel.txt` is the result for each panel member as seen by the rest of the sample. (n.b. technically we should remove themselves from the panel in this! But this is just a sanity check).
+The output `results/test_admix_vs_panel.txt` is the result for each panel member as seen by the rest of the sample. (n.b. technically we should make a panel for each, where we have remove themselves from the panel in this! But this is just a sanity check).
 
 We can now make a "confusion matrix", i.e. how much of the genome we correctly recover for each individual in the panel:
 
@@ -228,13 +233,14 @@ lambda=`cat sparsepaint/lambda.txt`
 indfrac="0.2" 
 L0="16" 
 Lmin="8"
-relafrac="0.1" # ralatedness threshold; this is sensitive to SNP
+relafrac="0.1" # relatedness threshold; this is sensitive to SNP
 ```
 
 And now painting! The mode below produces a minimum of output files. The logs are again quite large and so you might want to delete them. 
 
 ```{sh}
 for chr in $chrlist; do
+    echo "Processing chromosome $chr"
     SparsePainter -rmrelative -loo -reffile processeddata/panel.small.chrom${chr}.vcf -targetfile processeddata/target.small.chrom${chr}.vcf -popfile testcombined.pop.ids -mapfile rawdata/EuropeSample.small.chrom${chr}.sp.map -namefile rawdata/targets.ids -indfrac 1 -fixlambda $lambda -out targetpaint/test${chr}.sp.loo -chunklength -nsample 0 -L0 $L0 -Lmin $Lmin -relafrac $relafrac &> targetpaint/sp.loo.chr${chr}.log
 done
 ### Combine across chromosomes
@@ -259,6 +265,7 @@ Note: We will here **add the `-prob` parameter** to generate local paintings. Fo
 
 ```{sh}
 for chr in $chrlist; do
+    echo "Local ancestry for chromosome $chr"
     SparsePainter -reffile processeddata/panel.small.chrom${chr}.vcf -targetfile processeddata/target.small.chrom${chr}.vcf -popfile testcombined.pop.ids -mapfile rawdata/EuropeSample.small.chrom${chr}.sp.map -namefile rawdata/targets.ids -indfrac 1 -fixlambda $lambda -out targetpaint/test${chr}.sp.local -prob -nsample 0 -L0 $L0 -Lmin $Lmin -relafrac $relafrac &> targetpaint/sp.local.chr${chr}.log
 done
 ```
