@@ -2,6 +2,10 @@
 ## Creates a reference panel for admixture estimation from a leave-one-out chromosome painting (made with SparsePainter or ChromoPainter)
 
 if(!exists("args") || class(args)!="character"){
+    targs <- commandArgs(trailingOnly = FALSE)
+    tfilen=grep("--file=",targs)
+    fileloc=strsplit(targs[tfilen],"=")[[1]][2]
+    root=gsub("create_admix_ref.R","",fileloc)
     args <- commandArgs(trailingOnly = TRUE)
 }
 
@@ -40,7 +44,9 @@ if(length(files)!=3){
     stop("Must provide exactly 3 file names: input, popidfile, and output")
 }
 
-source("../code/FinestructureLibrary.R") # read in the R functions, which also calls the needed packages
+fsl=paste0(root,"FinestructureLibrary.R")
+print(paste0("Attempting to load FinestructureLibrary.R from ",fsl))
+source(fsl) # read in the R functions, which also calls the needed packages
 
 data <- as.matrix(read.table(files[1], header=TRUE, row.names=1))
 if(verbose) print(paste("Read data with",nrow(data),"individuals and",ncol(data),"donor populations"))

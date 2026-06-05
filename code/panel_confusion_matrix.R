@@ -1,6 +1,10 @@
 ## Runs admixture estimation on the reference panels
 
 if(!exists("args") || class(args)!="character"){
+    targs <- commandArgs(trailingOnly = FALSE)
+    tfilen=grep("--file=",targs)
+    fileloc=strsplit(targs[tfilen],"=")[[1]][2]
+    root=gsub("panel_confusion_matrix.R","",fileloc)
     args <- commandArgs(trailingOnly = TRUE)
 }
 
@@ -29,7 +33,9 @@ if(length(files)!=3){
     stop("Must provide exactly 3 file names: population_ids, admix_results, and output root")
 }
 
-source("../code/FinestructureLibrary.R") # read in the R functions, which also calls the needed packages
+fsl=paste0(root,"FinestructureLibrary.R")
+print(paste0("Attempting to load FinestructureLibrary.R from ",fsl))
+source(fsl) # read in the R functions, which also calls the needed packages
 
 idtable = read.table(files[1], header=TRUE, row.names=1)
 if(verbose) print(paste("Read population IDs for",nrow(idtable),"individuals and",length(unique(idtable[,1])),"populations"))

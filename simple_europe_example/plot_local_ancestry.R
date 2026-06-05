@@ -32,13 +32,9 @@ png(paste0("results/localAncestry_chr",chr,".png"),height=1500,width=1000)
 layout(matrix(1:(length(datalist)+1),ncol=1),
        heights=c(rep(1,length(datalist)),1)
        )
-par(mar=c(1,4,1,4),cex=2)
+par(mar=c(1,4,2,4),cex=2)
 for(i in 1:length(datalist)){
     data=datalist[[i]]
-    if(i==1) main="Local Ancestry"
-    else main=""
-    if(i==length(datalist)) xlab="SNP number"
-    else xlab=""
     ## --- Plot ---
     ## Use the full genomic range as x-axis limits
     x_min <- min(data$start)
@@ -48,11 +44,11 @@ for(i in 1:length(datalist)){
     plot(NULL,
          xlim = c(x_min, x_max),
          ylim = c(0, 1),
-         xlab = xlab,
-         ylab = "Ancestry proportion",
-         main = main,
+         xlab = "",
+         ylab = "Ancestry",
+         main="",
      xaxs = "i", yaxs = "i")  # no padding at axis edges
-
+    title(main=paste("Haplotype", hapnames[i]),cex.main=0.75,line=0.5,adj=0)
     ## Draw each segment as stacked filled rectangles
     for (i in seq_len(nrow(data))) {
         seg_start <- data$start[i]
@@ -76,6 +72,7 @@ for(i in 1:length(datalist)){
         }
     }
 }
+title(xlab="SNP number")
   plot(NULL,
          xlim = c(x_min, x_max),
          ylim = c(0, 1),
